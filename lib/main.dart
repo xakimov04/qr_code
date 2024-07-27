@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qr_code/ui/screens/qr_scaner_screen.dart';
-import 'package:qr_code/ui/screens/splash_screen.dart';
-import 'package:qr_code/ui/widgets/bottom_bar.dart';
+import 'ui/screens/splash_screen.dart';
 
-void main(List<String> args) {
+void main() {
   runApp(const MyApp());
 }
 
@@ -12,9 +10,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: OnBoarding(),
+      home: SplashScreen(),
     );
   }
 }

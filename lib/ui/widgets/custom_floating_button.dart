@@ -4,7 +4,8 @@ import 'package:qr_code/ui/widgets/bottom_bar.dart';
 import '../screens/qr_scaner_screen.dart';
 
 class CustomFloatingActionButton extends StatelessWidget {
-  const CustomFloatingActionButton({super.key});
+  final VoidCallback onPressed;
+  const CustomFloatingActionButton({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -23,15 +24,7 @@ class CustomFloatingActionButton extends StatelessWidget {
       ),
       child: FloatingActionButton(
         shape: const CircleBorder(),
-        onPressed: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const BottomBar(),
-            ),
-            (route) => false,
-          );
-        },
+        onPressed: onPressed,
         backgroundColor: const Color(0xffFDB623),
         child: const Icon(
           Icons.arrow_forward_rounded,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_code/ui/screens/add_qr_screen.dart';
+import 'package:qr_code/ui/screens/history_screen.dart';
 import 'package:qr_code/ui/screens/qr_scaner_screen.dart';
 
 class BottomBar extends StatefulWidget {
@@ -15,7 +16,7 @@ class _BottomBarState extends State<BottomBar> {
   final List<Widget> pages = const [
     HomeScreen(),
     AddQrScreen(),
-    Placeholder(),
+    HistoryScreen(),
   ];
 
   void onTabTapped(int index) {

@@ -2,49 +2,80 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:flutter/rendering.dart';
+import '../../controller/create_qr_code_database.dart';
 
-class GenerateQrScreen extends StatelessWidget {
+class GenerateQrScreen extends StatefulWidget {
   final String image;
   final String title;
   final VoidCallback onPressed;
-  GenerateQrScreen({
-    super.key,
+
+  const GenerateQrScreen({
+    Key? key,
     required this.image,
     required this.title,
     required this.onPressed,
-  });
-
-  final GlobalKey globalKey = GlobalKey();
+  }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final TextEditingController textController = TextEditingController();
+  State<GenerateQrScreen> createState() => _GenerateQrScreenState();
+}
 
-    Future<void> generateAndShowQRCode(String data) async {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            backgroundColor: const Color(0xff414140),
-            content: RepaintBoundary(
-              key: globalKey,
-              child: Column(
+class _GenerateQrScreenState extends State<GenerateQrScreen> {
+  final GlobalKey qrKey = GlobalKey();
+  final CreateQrCodeDatabase _databaseHelper = CreateQrCodeDatabase();
+  final TextEditingController textController = TextEditingController();
+  bool isSaving = false;
+
+  Future<void> saveQRCode(String data) async {
+    try {
+      RenderRepaintBoundary boundary =
+          qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final directory = (await getApplicationDocumentsDirectory()).path;
+      ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+      final file = File('$directory/qr_code.png');
+      await file.writeAsBytes(pngBytes);
+      await GallerySaver.saveImage(file.path);
+      DateTime now = DateTime.now();
+      String date = DateFormat('MMM d EEEE, yyyy').format(now);
+      String watch = DateFormat('HH:mm').format(now);
+
+      await _databaseHelper.insertQRCode(data, date, watch);
+    } catch (e) {
+      throw Exception('Failed to save QR Code: $e');
+    }
+  }
+
+  Future<void> generateAndShowQRCode(String data) async {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: const Color(0xff414140),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  QrImageView(
-                    data: data,
-                    version: QrVersions.auto,
-                    size: 200.0,
-                    backgroundColor: Colors.white,
+                  RepaintBoundary(
+                    key: qrKey,
+                    child: QrImageView(
+                      data: data,
+                      version: QrVersions.auto,
+                      size: 200.0,
+                      backgroundColor: Colors.white,
+                    ),
                   ),
                   const Gap(20),
                   ElevatedButton(
@@ -56,38 +87,21 @@ class GenerateQrScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                     ),
-                    onPressed: () async {
-                      try {
-                        RenderRepaintBoundary boundary =
-                            globalKey.currentContext!.findRenderObject()
-                                as RenderRepaintBoundary;
-                        ui.Image image = await boundary.toImage();
-                        final directory =
-                            (await getApplicationDocumentsDirectory()).path;
-                        ByteData? byteData = await image.toByteData(
-                            format: ui.ImageByteFormat.png);
-                        Uint8List pngBytes = byteData!.buffer.asUint8List();
-                        final file = File('$directory/qr_code.png');
-                        await file.writeAsBytes(pngBytes);
-                        await GallerySaver.saveImage(file.path);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            backgroundColor: Color(0xffFDB623),
-                            content: Row(
-                              children: [
-                                Icon(Icons.check, color: Colors.black),
-                                SizedBox(width: 10),
-                                Text('QR Code saved to gallery!',
-                                    style: TextStyle(color: Colors.black)),
-                              ],
-                            ),
-                          ),
-                        );
-                        Navigator.of(context).pop();
-                      } catch (e) {
-                        print(e);
-                      }
-                    },
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            setState(() => isSaving = true);
+                            try {
+                              await saveQRCode(data);
+                              Navigator.of(context).pop();
+                              showSnackBar(
+                                  'QR Code saved to gallery and database!');
+                            } catch (e) {
+                              showSnackBar('Error saving QR Code: $e');
+                            } finally {
+                              setState(() => isSaving = false);
+                            }
+                          },
                     child: const Text(
                       'Save to Gallery',
                       style: TextStyle(
@@ -98,17 +112,41 @@ class GenerateQrScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-          );
-        },
-      );
-    }
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xffFDB623),
+        content: Row(
+          children: [
+            const Icon(Icons.check, color: Colors.black),
+            const SizedBox(width: 10),
+            Text(
+              message,
+              style: const TextStyle(color: Colors.black),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       children: [
         Positioned.fill(
-          child: Image.asset("assets/images/fon2.png"),
+          child: Image.asset(
+            "assets/images/fon2.png",
+            fit: BoxFit.cover,
+          ),
         ),
         Scaffold(
           appBar: AppBar(
@@ -123,7 +161,7 @@ class GenerateQrScreen extends StatelessWidget {
             ),
             backgroundColor: Colors.transparent,
             title: Text(
-              title,
+              widget.title,
               style: const TextStyle(
                 color: Colors.white,
                 fontFamily: 'itim',
@@ -152,7 +190,7 @@ class GenerateQrScreen extends StatelessWidget {
                     children: [
                       Center(
                         child: Image.asset(
-                          "assets/icons/$image.png",
+                          "assets/icons/${widget.image}.png",
                           color: const Color(0xffFDB623),
                           width: 60,
                           height: 60,
@@ -163,7 +201,7 @@ class GenerateQrScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            title,
+                            widget.title,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -180,7 +218,7 @@ class GenerateQrScreen extends StatelessWidget {
                               fontSize: 18,
                             ),
                             decoration: InputDecoration(
-                              hintText: "Enter $title",
+                              hintText: "Enter ${widget.title}",
                               hintStyle: const TextStyle(
                                 color: Color(0xffD9D9D9),
                               ),
@@ -202,12 +240,8 @@ class GenerateQrScreen extends StatelessWidget {
                               generateAndShowQRCode(text);
                               textController.text = '';
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Please enter text to generate QR code'),
-                                ),
-                              );
+                              showSnackBar(
+                                  'Please enter text to generate QR code');
                             }
                           },
                           child: const Text(

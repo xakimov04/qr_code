@@ -6,6 +6,7 @@ import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../controller/qr_code_database.dart';
 
 class ScannerResult extends StatelessWidget {
   final Barcode scanData;
@@ -42,6 +43,22 @@ class ScannerResult extends StatelessWidget {
       if (uri != null && await canLaunchUrl(uri)) {
         await launchUrl(uri);
       }
+    }
+
+    void saveData() async {
+      await DatabaseHelper().insertQRCode(scanData.code!, date, watch);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Data saved',
+            style: TextStyle(
+              fontFamily: 'itim',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      );
     }
 
     return Stack(
@@ -175,11 +192,17 @@ class ScannerResult extends StatelessWidget {
                     icon: Icons.share,
                     text: 'Share',
                   ),
-                  const Gap(40),
+                  const Gap(20),
                   CustomButton(
                     onTap: copyToClipboard,
                     icon: Icons.copy_rounded,
                     text: 'Copy',
+                  ),
+                  const Gap(20),
+                  CustomButton(
+                    onTap: saveData,
+                    icon: Icons.save,
+                    text: 'Save',
                   ),
                 ],
               ),

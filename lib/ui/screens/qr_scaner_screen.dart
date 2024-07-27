@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:qr_code/ui/screens/scanner_result.dart';
 import 'package:qr_code/ui/widgets/cam_size.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
@@ -11,15 +12,21 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   double cutOutSize = 200.0;
 
   QRViewController? controller;
+  AnimationController? animationController;
 
   @override
   void initState() {
     super.initState();
+    animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -36,6 +43,13 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (Platform.isIOS) {
       controller?.resumeCamera();
     }
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    animationController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -119,6 +133,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        ScanAnimation(
+          animationController: animationController!,
+          cutOutSize: cutOutSize,
+        ),
+        // Positioned(
+        //   left: 0,
+        //   right: 0,
+        //   top: 0,
+        //   bottom: 0,
+        //   child: SizedBox(
+        //     height: cutOutSize,
+        //     width: cutOutSize,
+        //     child: Lottie.asset("assets/lottie/scaner.json"),
+        //   ),
+        // ),
       ],
     );
   }
@@ -129,22 +158,77 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     controller.scannedDataStream.listen((scanData) {
       controller.pauseCamera();
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ScannerResult(
-            scanData: scanData,
+
+      if (isValidQRCode(scanData.code)) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ScannerResult(scanData: scanData),
           ),
-        ),
-      ).then((_) {
+        ).then((_) {
+          controller.resumeCamera();
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Invalid QR Code',
+              style: TextStyle(
+                fontFamily: 'itim',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
         controller.resumeCamera();
-      });
+      }
     });
   }
 
+  bool isValidQRCode(String? code) {
+    if (code == null || code.isEmpty) {
+      return false;
+    }
+    return true;
+  }
+}
+
+class ScanAnimation extends StatelessWidget {
+  final AnimationController animationController;
+  final double cutOutSize;
+
+  const ScanAnimation({
+    super.key,
+    required this.animationController,
+    required this.cutOutSize,
+  });
+
   @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: SizedBox(
+        height: cutOutSize,
+        width: cutOutSize,
+        child: Stack(
+          children: [
+            AnimatedBuilder(
+              animation: animationController,
+              builder: (context, child) {
+                return Positioned(
+                  top: animationController.value * (cutOutSize - 2),
+                  child: Container(
+                    width: cutOutSize,
+                    height: 3,
+                    color: Colors.amber,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
