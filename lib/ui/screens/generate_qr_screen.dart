@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:flutter/rendering.dart';
 import '../../controller/create_qr_code_database.dart';
+import '../widgets/snack_bar_widget.dart';
 
 class GenerateQrScreen extends StatefulWidget {
   final String image;
@@ -16,11 +17,11 @@ class GenerateQrScreen extends StatefulWidget {
   final VoidCallback onPressed;
 
   const GenerateQrScreen({
-    Key? key,
+    super.key,
     required this.image,
     required this.title,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   State<GenerateQrScreen> createState() => _GenerateQrScreenState();
@@ -94,10 +95,20 @@ class _GenerateQrScreenState extends State<GenerateQrScreen> {
                             try {
                               await saveQRCode(data);
                               Navigator.of(context).pop();
-                              showSnackBar(
-                                  'QR Code saved to gallery and database!');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBarWidget(
+                                  message:
+                                      'QR Code saved to gallery and database!',
+                                  isError: false,
+                                ).build(context),
+                              );
                             } catch (e) {
-                              showSnackBar('Error saving QR Code: $e');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBarWidget(
+                                  message: 'Failed to save QR Code: $e',
+                                  isError: true,
+                                ).build(context),
+                              );
                             } finally {
                               setState(() => isSaving = false);
                             }
@@ -117,24 +128,6 @@ class _GenerateQrScreenState extends State<GenerateQrScreen> {
           ),
         );
       },
-    );
-  }
-
-  void showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: const Color(0xffFDB623),
-        content: Row(
-          children: [
-            const Icon(Icons.check, color: Colors.black),
-            const SizedBox(width: 10),
-            Text(
-              message,
-              style: const TextStyle(color: Colors.black),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -240,8 +233,13 @@ class _GenerateQrScreenState extends State<GenerateQrScreen> {
                               generateAndShowQRCode(text);
                               textController.text = '';
                             } else {
-                              showSnackBar(
-                                  'Please enter text to generate QR code');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBarWidget(
+                                  message:
+                                      'Please enter text to generate QR code',
+                                  isError: true,
+                                ).build(context),
+                              );
                             }
                           },
                           child: const Text(

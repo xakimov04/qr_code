@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:barcode_finder/barcode_finder.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:qr_code/ui/screens/scanner_result.dart';
 import 'package:qr_code/ui/widgets/cam_size.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,7 +18,6 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   double cutOutSize = 200.0;
-
   QRViewController? controller;
   AnimationController? animationController;
 
@@ -52,6 +53,29 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
+  Future<void> _scanImage(File image) async {
+    final qrCodeResult = await BarcodeFinder.scanFile(path: image.path);
+    if (qrCodeResult != null) {
+      setState(() {
+        controller?.pauseCamera();
+      });
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScannerResult(data: qrCodeResult),
+        ),
+      );
+      controller?.resumeCamera();
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      await _scanImage(File(pickedFile.path));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -79,76 +103,69 @@ class _HomeScreenState extends State<HomeScreen>
           top: 45,
           left: 20,
           right: 20,
-          child: Container(
-            width: double.infinity,
-            height: 50,
-            decoration: BoxDecoration(
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0xff414140),
-                  blurRadius: 10,
-                  offset: Offset(0, 0),
-                ),
-              ],
-              color: const Color(0xff414140),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () {},
-                    child: Image.asset(
-                      "assets/icons/image.png",
-                      width: 25,
-                      height: 25,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      if (controller != null) {
-                        controller!.toggleFlash();
-                      }
-                    },
-                    child: const Icon(
-                      Icons.flash_on,
-                      color: Color(0xffD9D9D9),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      if (controller != null) {
-                        controller!.flipCamera();
-                      }
-                    },
-                    child: const Icon(
-                      Icons.flip_camera_ios_rounded,
-                      color: Color(0xffD9D9D9),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          child: _buildTopBar(),
         ),
         ScanAnimation(
           animationController: animationController!,
           cutOutSize: cutOutSize,
         ),
-        // Positioned(
-        //   left: 0,
-        //   right: 0,
-        //   top: 0,
-        //   bottom: 0,
-        //   child: SizedBox(
-        //     height: cutOutSize,
-        //     width: cutOutSize,
-        //     child: Lottie.asset("assets/lottie/scaner.json"),
-        //   ),
-        // ),
       ],
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      width: double.infinity,
+      height: 50,
+      decoration: BoxDecoration(
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xff414140),
+            blurRadius: 10,
+            offset: Offset(0, 0),
+          ),
+        ],
+        color: const Color(0xff414140),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            GestureDetector(
+              onTap: _pickImage,
+              child: Image.asset(
+                "assets/icons/image.png",
+                width: 25,
+                height: 25,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                if (controller != null) {
+                  controller!.toggleFlash();
+                }
+              },
+              child: const Icon(
+                Icons.flash_on,
+                color: Color(0xffD9D9D9),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                if (controller != null) {
+                  controller!.flipCamera();
+                }
+              },
+              child: const Icon(
+                Icons.flip_camera_ios_rounded,
+                color: Color(0xffD9D9D9),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -156,18 +173,17 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       this.controller = controller;
     });
-    controller.scannedDataStream.listen((scanData) {
+    controller.scannedDataStream.listen((scanData) async {
       controller.pauseCamera();
 
       if (isValidQRCode(scanData.code)) {
-        Navigator.push(
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ScannerResult(scanData: scanData),
           ),
-        ).then((_) {
-          controller.resumeCamera();
-        });
+        );
+        controller.resumeCamera();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -187,10 +203,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   bool isValidQRCode(String? code) {
-    if (code == null || code.isEmpty) {
-      return false;
-    }
-    return true;
+    return code != null && code.isNotEmpty;
   }
 }
 

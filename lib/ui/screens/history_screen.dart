@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:intl/intl.dart';
 import 'package:qr_code/controller/create_qr_code_database.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import '../../controller/qr_code_database.dart';
@@ -13,47 +12,38 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen>
-    with SingleTickerProviderStateMixin {
+class _HistoryScreenState extends State<HistoryScreen> {
   List<Map<String, dynamic>> qrCodes = [];
   List<Map<String, dynamic>> createQrCodes = [];
-  late TabController _tabController;
+
+  bool isScanSelected = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     fetchQRCodes();
-    fetchCreateQRCodes();
   }
 
   Future<void> fetchQRCodes() async {
-    final data = await DatabaseHelper().getQRCodes();
+    final scannedData = await DatabaseHelper().getQRCodes();
+    final createdData = await CreateQrCodeDatabase().getQRCodes();
     setState(() {
-      qrCodes = data;
+      qrCodes = scannedData;
+      createQrCodes = createdData;
     });
   }
 
-  Future<void> fetchCreateQRCodes() async {
-    final data = await CreateQrCodeDatabase().getQRCodes();
-    setState(() {
-      createQrCodes = data;
-    });
-  }
-
-  Future<void> deleteQRCode(int id) async {
-    await DatabaseHelper().deleteQRCode(id);
+  Future<void> deleteQRCode(int id, bool isScan) async {
+    if (isScan) {
+      await DatabaseHelper().deleteQRCode(id);
+    } else {
+      await CreateQrCodeDatabase().deleteQRCode(id);
+    }
     fetchQRCodes();
-  }
-
-  Future<void> deleteCreateQRCode(int id) async {
-    await CreateQrCodeDatabase().deleteQRCode(id);
-    fetchCreateQRCodes();
   }
 
   @override
   Widget build(BuildContext context) {
-    print(createQrCodes);
     return Stack(
       children: [
         Positioned.fill(
@@ -81,24 +71,82 @@ class _HistoryScreenState extends State<HistoryScreen>
                 onPressed: () {},
               ),
             ],
-            bottom: TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.orange,
-              tabs: const [
-                Tab(text: 'Scan'),
-                Tab(text: 'Create'),
-              ],
-            ),
           ),
-          body: TabBarView(
-            controller: _tabController,
+          body: Column(
             children: [
-              _buildListView(qrCodes, deleteQRCode),
-              _buildListView(createQrCodes, deleteCreateQRCode),
+              _buildToggleButton(),
+              Expanded(
+                child: _buildListView(
+                  isScanSelected ? qrCodes : createQrCodes,
+                  (id) => deleteQRCode(id, isScanSelected),
+                ),
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildToggleButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Container(
+        width: double.infinity,
+        height: 50,
+        decoration: BoxDecoration(
+          color: const Color(0xff393939),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => isScanSelected = true),
+                child: _buildToggleOption("Scan", isScanSelected),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => isScanSelected = false),
+                child: _buildToggleOption("Create", !isScanSelected),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleOption(String text, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.all(5.0),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: isSelected
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xffFDB623), Color(0xff9A762B)],
+                )
+              : const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.transparent],
+                ),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontFamily: 'itim',
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -118,13 +166,13 @@ class _HistoryScreenState extends State<HistoryScreen>
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index];
-
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => ScannerResult(
+                        save: true,
                         scanData: Barcode(
                           item['code'],
                           BarcodeFormat.qrcode,
@@ -152,10 +200,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                     children: [
                       Image.asset(
                         'assets/icons/data.png',
-                        width: 40,
-                        height: 40,
+                        width: 30,
+                        height: 30,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
