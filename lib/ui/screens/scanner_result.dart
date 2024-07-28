@@ -15,11 +15,11 @@ class ScannerResult extends StatelessWidget {
   final Barcode? scanData;
 
   const ScannerResult({
-    Key? key,
+    super.key,
     this.scanData,
     this.save = false,
     this.data,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class ScannerResult extends StatelessWidget {
         ),
         Scaffold(
           appBar: AppBar(
-            leading: BackButton(color: Colors.white),
+            leading: const BackButton(color: Colors.white),
             backgroundColor: Colors.transparent,
             title: const Text(
               "QR Code",
@@ -68,7 +68,7 @@ class ScannerResult extends StatelessWidget {
                 onCopyToClipboard: () =>
                     _copyToClipboard(scanData?.code, context),
                 onSaveData: () =>
-                    _saveData(scanData?.code, date, watch, context),
+                    _saveData(scanData?.code ?? data, date, watch, context),
               ),
             ],
           ),
@@ -107,6 +107,7 @@ class ScannerResult extends StatelessWidget {
   Future<void> _saveData(
       String? data, String date, String watch, BuildContext context) async {
     if (data != null) {
+      print(data);
       await DatabaseHelper().insertQRCode(data, date, watch);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBarWidget(
@@ -183,10 +184,10 @@ class QRCodeDataHeader extends StatelessWidget {
   final String watch;
 
   const QRCodeDataHeader({
-    Key? key,
+    super.key,
     required this.date,
     required this.watch,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -231,9 +232,9 @@ class QRCodeDataText extends StatelessWidget {
   final String data;
 
   const QRCodeDataText({
-    Key? key,
+    super.key,
     required this.data,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -259,13 +260,13 @@ class ActionButtons extends StatelessWidget {
   final VoidCallback onSaveData;
 
   const ActionButtons({
-    Key? key,
+    super.key,
     required this.save,
     required this.scanData,
     required this.onShareData,
     required this.onCopyToClipboard,
     required this.onSaveData,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

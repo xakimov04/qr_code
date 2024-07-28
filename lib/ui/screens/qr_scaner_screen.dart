@@ -6,6 +6,7 @@ import 'package:qr_code/ui/screens/scanner_result.dart';
 import 'package:qr_code/ui/widgets/cam_size.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_vibrate/flutter_vibrate.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -177,6 +178,12 @@ class _HomeScreenState extends State<HomeScreen>
       controller.pauseCamera();
 
       if (isValidQRCode(scanData.code)) {
+        if (await Vibrate.canVibrate) {
+          Vibrate.vibrate(
+          
+          );
+        }
+
         await Navigator.push(
           context,
           MaterialPageRoute(
